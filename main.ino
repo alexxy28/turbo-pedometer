@@ -6,12 +6,12 @@
 
 
 //Pins for each axis of the accelerometer
-const int xSig = 5;
-const int ySig = 3;
+const int xSig = 4;
+const int ySig = 2;
 const int zSig = 1;
 
 //pin for the SelfTest Enable
-const int ST = 7;
+const int ST = 6;
 const int thresholdX = 50;
 const int thresholdY = 50;
 const int thresholdZ = 50;
