@@ -36,7 +36,7 @@ bool selftest() {
     // Send message to the LCD that selftest is running
 
     // Enable self test mode
-    digitalWrite(ST, HIGH);
+    digitalWrite(ST, LOW);
     delay(100); // Wait for the self test to stabilize
 
     // Read the accelerometer values in self test mode
@@ -45,7 +45,7 @@ bool selftest() {
     int zSelfTest = averageAnalogMilliVolts(zSig);
 
     // Disable self test mode
-    digitalWrite(ST, LOW);
+    digitalWrite(ST, HIGH);
     delay(100);
 
     // Read the accelerometer values in normal mode
@@ -74,7 +74,7 @@ bool selftest() {
 
 void setup() {
   
-
+// PinMode for ADXL inputs and Self Test output
   // Analog signal inputs
   pinMode(xSig, INPUT);
   pinMode(ySig, INPUT);
