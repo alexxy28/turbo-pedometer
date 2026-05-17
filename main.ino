@@ -33,7 +33,9 @@ int averageAnalogMilliVolts(int pin) {
 bool selftest() {
   int selfTestAttempts = 0;
   while (selfTestAttempts < 3 && !selfTestPassed) {
-    // Send message to the LCD that selftest is running
+    // Log attempt
+    Serial.print("Self-test attempt ");
+    Serial.println(selfTestAttempts + 1);
 
     // Enable self test mode
     digitalWrite(ST, LOW);
@@ -44,6 +46,10 @@ bool selftest() {
     int ySelfTest = averageAnalogMilliVolts(ySig);
     int zSelfTest = averageAnalogMilliVolts(zSig);
 
+    Serial.print("SelfTest readings mV: X="); Serial.print(xSelfTest);
+    Serial.print(" Y="); Serial.print(ySelfTest);
+    Serial.print(" Z="); Serial.println(zSelfTest);
+
     // Disable self test mode
     digitalWrite(ST, HIGH);
     delay(100);
@@ -53,18 +59,29 @@ bool selftest() {
     int yNormal = averageAnalogMilliVolts(ySig);
     int zNormal = averageAnalogMilliVolts(zSig);
 
+    Serial.print("Normal readings mV: X="); Serial.print(xNormal);
+    Serial.print(" Y="); Serial.print(yNormal);
+    Serial.print(" Z="); Serial.println(zNormal);
+
     // Calculate the signed deltas in millivolts
     int xDiff = xSelfTest - xNormal;
     int yDiff = ySelfTest - yNormal;
     int zDiff = zSelfTest - zNormal;
+
+    Serial.print("Diff mV: X="); Serial.print(xDiff);
+    Serial.print(" Y="); Serial.print(yDiff);
+    Serial.print(" Z="); Serial.println(zDiff);
 
     // Check if the deltas are within the expected ranges
     if (xDiff > -800 && xDiff < -430 &&
         yDiff > 200 && yDiff < 430 &&
         zDiff > 200 && zDiff < 730) {
       selfTestPassed = true;
+      Serial.println("Self-test: PASS");
       return true; // Self test passed
     }
+
+    Serial.println("Self-test attempt result: FAIL");
 
     ++selfTestAttempts; // Increment the self test attempts counter
   }
@@ -73,14 +90,26 @@ bool selftest() {
 }
 
 void setup() {
-  
-// PinMode for ADXL inputs and Self Test output
+  // Initialize Serial for debug output
+  Serial.begin(115200);
+  delay(100);
+  Serial.println("Starting pedometer self-test...");
+
+  // PinMode for ADXL inputs and Self Test output
   // Analog signal inputs
   pinMode(xSig, INPUT);
   pinMode(ySig, INPUT);
   pinMode(zSig, INPUT);
   //output pin for Self Test
   pinMode(ST, OUTPUT);
+
+  // Run the self-test once at startup and report result
+  bool passed = selftest();
+  if (passed) {
+    Serial.println("Self-test PASSED");
+  } else {
+    Serial.println("Self-test FAILED");
+  }
 }
 
 
