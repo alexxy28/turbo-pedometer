@@ -18,6 +18,29 @@ const int thresholdZ = 50;
 //Self Test results
 bool selfTestPassed = false;
 
+
+// Pace Detection Variables
+int paces = 0;
+bool testing = true;
+
+const int led1 = 13;
+const int led2 = 12;
+const int led3 = 14;
+
+int currentSteps = 0;
+int lastSteps = 0;
+
+unsigned long paceTimer = 0;
+// End Pace Detection Var
+
+
+// Button Input
+const int button = 10;
+const int debounceDelay = 50; // milliseconds
+unsigned long lastButtonPressTime = 0;
+// End Button Input
+
+
 int averageAnalogMilliVolts(int pin) {
   long total = 0;
   const int sampleCount = 5;
@@ -28,6 +51,66 @@ int averageAnalogMilliVolts(int pin) {
   }
 
   return total / sampleCount;
+}
+
+bool buttonPressed() {
+  unsigned long currentTime = millis();
+  if (digitalRead(button) == LOW && (currentTime - lastButtonPressTime) > debounceDelay) {
+    lastButtonPressTime = currentTime;
+    return true;
+  }
+  return false;
+}
+
+void paceDetect() {
+  switch (paces) {
+    if(millis() - paceTimer > 3000) {
+    paceTimer = millis();
+    case 0:
+      digitalWrite(led1, LOW);
+      digitalWrite(led2, LOW);
+      digitalWrite(led3, LOW);
+
+      if(currentSteps - lastSteps >= 1) {
+        paces = 1;
+      }
+      
+      break;
+    case 1:
+      digitalWrite(led1, HIGH);
+      digitalWrite(led2, LOW);
+      digitalWrite(led3, LOW);
+
+        if(currentSteps - lastSteps >= 3) {
+          paces = 2;
+        } else if (currentSteps - lastSteps < 1) {
+          paces = 0;
+        }
+      break;
+    case 2: 
+      digitalWrite(led1, HIGH);
+      digitalWrite(led2, HIGH);
+      digitalWrite(led3, LOW);
+        if(currentSteps - lastSteps >= 5) {
+          paces = 3;
+        } else if (currentSteps - lastSteps < 3) {
+          paces = 1;
+        }
+      break;
+    case 3:
+      digitalWrite(led1, HIGH);
+      digitalWrite(led2, HIGH);
+      digitalWrite(led3, HIGH);
+      if(currentSteps - lastSteps < 5) {
+        paces = 2;
+      }
+      break;
+  }
+  lastSteps = currentSteps;
+  if(testing) {
+    currentSteps += random(0, 7);
+  }
+}
 }
 
 bool selftest() {
@@ -102,6 +185,14 @@ void setup() {
   pinMode(zSig, INPUT);
   //output pin for Self Test
   pinMode(ST, OUTPUT);
+
+  // Outputs for Pace Detection
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+  pinMode(led3, OUTPUT);
+  // Button Input
+  pinMode(button, INPUT_PULLUP);
+
 
   // Run the self-test once at startup and report result
   bool passed = selftest();
