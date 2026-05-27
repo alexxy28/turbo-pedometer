@@ -12,9 +12,9 @@ const int zSig = 1;
 
 //pin for the SelfTest Enable
 const int ST = 6;
-const int thresholdX = 50;
-const int thresholdY = 50;
-const int thresholdZ = 50;
+const int thresholdX = 100;
+const int thresholdY = 100;
+const int thresholdZ = 100;
 //Self Test results
 bool selfTestPassed = false;
 
