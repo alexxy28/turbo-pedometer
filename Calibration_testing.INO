@@ -11,7 +11,14 @@ const float cutoffHz = 0.5f;
 const float samplePeriodSeconds = 0.10f;
 
 const float rc = 1.0f / (2.0f * PI * cutoffHz);
-const float alpha = rc / (rc + samplePeriodSeconds);
+
+unsigned long lastMillis = 0;
+
+// Sensor calibration (set these to your sensor's values)
+// `sensorOffsetMilliVolts` is the output (mV) corresponding to 0 g (often Vcc/2).
+// `sensorSensitivityMilliVoltsPerG` is mV per g (e.g., 330 mV/g for some sensors).
+const float sensorOffsetMilliVolts = 1650.0f;
+const float sensorSensitivityMilliVoltsPerG = 330.0f;
 
 float lastRawX = 0.0f;
 float lastRawY = 0.0f;
@@ -35,7 +42,19 @@ int averageAnalogMilliVolts(int pin) {
   return total / sampleCount;
 }
 
-void applyHighPassFilter(float rawX, float rawY, float rawZ) {
+int averageAnalogRaw(int pin) {
+  long total = 0;
+  const int sampleCount = 5;
+
+  for (int i = 0; i < sampleCount; i++) {
+    total += analogRead(pin);
+    delay(10);
+  }
+
+  return total / sampleCount;
+}
+
+void applyHighPassFilter(float rawX, float rawY, float rawZ, float alpha) {
   if (!filterInitialized) {
     lastRawX = rawX;
     lastRawY = rawY;
@@ -65,34 +84,69 @@ void setup() {
   Serial.println("Keep the sensor still to see gravity attenuate toward zero.");
   Serial.print("Cutoff Hz: ");
   Serial.println(cutoffHz, 2);
-  Serial.print("Alpha: ");
-  Serial.println(alpha, 4);
+  float initialAlpha = rc / (rc + samplePeriodSeconds);
+  Serial.print("Alpha (initial estimate): ");
+  Serial.println(initialAlpha, 4);
 }
 
 void loop() {
+  int xRaw = averageAnalogRaw(xSig);
+  int yRaw = averageAnalogRaw(ySig);
+  int zRaw = averageAnalogRaw(zSig);
+
   float xValue = (float)averageAnalogMilliVolts(xSig);
   float yValue = (float)averageAnalogMilliVolts(ySig);
   float zValue = (float)averageAnalogMilliVolts(zSig);
 
-  applyHighPassFilter(xValue, yValue, zValue);
+  unsigned long now = millis();
+  float dtSeconds;
+  if (lastMillis == 0) {
+    dtSeconds = samplePeriodSeconds; // use estimate for first iteration
+  } else {
+    dtSeconds = (now - lastMillis) / 1000.0f;
+  }
+  lastMillis = now;
 
-  Serial.print("Raw mV -> X: ");
-  Serial.print(xValue, 2);
+  float alpha = rc / (rc + dtSeconds);
+  if (alpha < 0.0f) alpha = 0.0f;
+  else if (alpha > 1.0f) alpha = 1.0f;
+
+  applyHighPassFilter(xValue, yValue, zValue, alpha);
+
+  // Convert raw mV -> g (use offset calibration for raw values)
+  float xRawG = (xValue - sensorOffsetMilliVolts) / sensorSensitivityMilliVoltsPerG;
+  float yRawG = (yValue - sensorOffsetMilliVolts) / sensorSensitivityMilliVoltsPerG;
+  float zRawG = (zValue - sensorOffsetMilliVolts) / sensorSensitivityMilliVoltsPerG;
+
+  // Filtered values are AC (DC removed) so convert directly by sensitivity
+  float xFilteredG = filteredX / sensorSensitivityMilliVoltsPerG;
+  float yFilteredG = filteredY / sensorSensitivityMilliVoltsPerG;
+  float zFilteredG = filteredZ / sensorSensitivityMilliVoltsPerG;
+
+  Serial.print("Raw ADC -> X: ");
+  Serial.print(xRaw);
   Serial.print(" Y: ");
-  Serial.print(yValue, 2);
+  Serial.print(yRaw);
   Serial.print(" Z: ");
-  Serial.println(zValue, 2);
+  Serial.println(zRaw);
 
-  Serial.print("High-pass mV -> X: ");
-  Serial.print(filteredX, 2);
+  Serial.print("Raw G -> X: ");
+  Serial.print(xRawG, 3);
   Serial.print(" Y: ");
-  Serial.print(filteredY, 2);
+  Serial.print(yRawG, 3);
   Serial.print(" Z: ");
-  Serial.println(filteredZ, 2);
+  Serial.println(zRawG, 3);
 
-  float magnitude = sqrt(filteredX * filteredX + filteredY * filteredY + filteredZ * filteredZ);
-  Serial.print("Filtered magnitude mV: ");
-  Serial.println(magnitude, 2);
+  Serial.print("High-pass G -> X: ");
+  Serial.print(xFilteredG, 3);
+  Serial.print(" Y: ");
+  Serial.print(yFilteredG, 3);
+  Serial.print(" Z: ");
+  Serial.println(zFilteredG, 3);
+
+  float magnitudeG = sqrt(xFilteredG * xFilteredG + yFilteredG * yFilteredG + zFilteredG * zFilteredG);
+  Serial.print("Filtered magnitude g: ");
+  Serial.println(magnitudeG, 3);
 
   delay(100);
 }
